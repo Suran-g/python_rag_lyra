@@ -1,0 +1,24 @@
+[project]
+name = "python-rag-lyra"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Suran", email = "13528879830@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "chromadb>=1.5.9",
+    "openai>=3.48.0",
+    "python-dotenv>=1.2.4",
+    "requests>=2.34.2",
+    "streamlit>=1.67.0",
+    "tqdm>=4.70.1",
+]
+
+[project.scripts]
+python-rag-lyra = "python_rag_lyra:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
