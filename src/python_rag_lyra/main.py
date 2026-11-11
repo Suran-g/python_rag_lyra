@@ -8,10 +8,9 @@ def handle_web():
     subprocess.run([sys.executable, "-m", "streamlit", "run", str(app)])
 
 
-def build_rag():
-    r = rag("data/BCPONY.txt")
+def build_rag(self, c:int = 1):
+    r = rag("data/BCPONY.txt", chunks_model=c)
     collection = r.get_collection()
-
     if collection.count() == 0:          # 库是空的才建
         collection = r.build_collection()
         print("建库成功")
@@ -28,17 +27,20 @@ while True:
 =====================
 """))
     try:
-        if p == 1:
-            build_rag()
-        elif p == 2:
-            handle_web()
-        elif p == 3:
-            rag = rag("data/BCPONY.txt")
-            collection = rag.get_collection()
-            print(f"库名: {collection.name}, 文档数: {collection.count()}")
-        elif p == 0:
-            print("退出")
-            break
+        match p:
+            case 1:
+                mod = int(input("选择切块方式：1.按文档段落切分,长段按句子切 2.按换行切分 3.按固定长度切分\n"))
+                build_rag(mod)
+            case 2:
+                handle_web()
+            case 3:
+                rag = rag("data/BCPONY.txt")
+                collection = rag.get_collection()
+                print(f"库名: {collection.name}, 文档数: {collection.count()}")
+            case 4:
+                print("退出")
+            case _:
+                break
     except Exception as e:
                 raise RuntimeError(f"运行失败：{e}") from e
 
