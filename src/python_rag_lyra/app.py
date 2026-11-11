@@ -185,6 +185,8 @@ if prompt:
         }
         ],
         stream=True,
+        temperature=1.0,
+        max_tokens=800,
         extra_body={"thinking": {"type": "enabled"}},
     ))
 

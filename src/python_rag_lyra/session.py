@@ -35,7 +35,7 @@ class session:
             include=["documents", "metadatas", "distances"],
         )
         print("问题向量化成功 ")
-        print(results["documents"][0])
+        #print(results["documents"][0])
         return results
 
     def build_prompt(self, question: str, context_chunks) -> str:
@@ -43,6 +43,7 @@ class session:
         context = "\n\n".join(
             f"[片段 {i}]\n{chunk}" for i, chunk in enumerate(context_chunks, start=1)
         )
+        print(context)
         return f"""资料：{context}问题：{question}"""
 
     
@@ -72,7 +73,7 @@ class session:
                     "content": self.build_prompt(question, context_chunks)
                 },
             ],
-            temperature=0.2,
+            temperature=1.0,
             max_tokens=800,
         )
 
@@ -84,7 +85,7 @@ class session:
             context_chunks = results["documents"][0]
             return self.generate_answer(question, context_chunks)
 
-    def context_chunks(self,question,top_k: int = 100):
+    def context_chunks(self,question,top_k: int = 50):
                 """结合回传chunks"""
                 results = self.retrieve(question, top_k)
                 context_chunks = results["documents"][0]

@@ -16,9 +16,11 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME")
 
 
 class rag:
-    def __init__(self, doc_file:str, model = "qwen3-embedding:4b"):
+    def __init__(self, doc_file:str, model = "qwen3-embedding:4b", chunk_size:int = 500, overlap:int = 80):
         self.doc_file = doc_file
         self.model = model
+        self.chunk_size = chunk_size
+        self.overlap = overlap
         self.embedder = OllamaEmbedder(model=model)
 
     def run_rag():
@@ -35,6 +37,7 @@ class rag:
 
     def split_into_chunks(self, doc_file:str)->list[str]:
         """按空行(段落)切分文档。"""
+
         content = Path(doc_file).read_text(encoding="utf-8")
 
         content = content.replace("\r\n", "\n").strip()
@@ -43,18 +46,30 @@ class rag:
         for part in content.split("\n\n"):
             if part.strip():
                 results.append(part.strip()) 
-        return results    
+        return results   
+
+    def split_fixed(self, doc_file:str, chunk_size=200, overlap=80):
+        """按固定长度切分文本，返回切分后的列表。"""
+        chunks, start = [], 0
+        content = Path(doc_file).read_text(encoding="utf-8")
+        while start < len(content):
+            end = start + chunk_size
+            chunks.append(content[start:end])
+            start = end - overlap
+            #print(chunks)
+        return chunks
+ 
 
     def build_collection(self, batch_size:int = 1000):
         """切块 → 向量化 → 存入 Chroma，返回 collection。"""
         try:
             collection = self.get_collection()
-            document_chunks = self.split_into_chunks(self.doc_file)
+            document_chunks = self.split_fixed(self.doc_file)
 
             #分批向量化
             vectors = []
-            total = len(document_chunks) 
-            batch = 128
+            total = len(document_chunks) - 7000
+            batch = 64
             for start in tqdm(range(0, total, batch), desc="向量化"):
                 end = min(start + batch, total)
                 vectors.extend(self.embedder.embed(document_chunks[start:end]))
@@ -62,7 +77,7 @@ class rag:
     
             doc_name = Path(self.doc_file).stem
 
-            total = len(document_chunks) 
+            total = len(document_chunks) - 7000
             for start in range(0, total, batch_size):
                 end = min(start + batch_size, total)
 
