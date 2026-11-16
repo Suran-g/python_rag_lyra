@@ -73,8 +73,9 @@ class session:
                     "content": self.build_prompt(question, context_chunks)
                 },
             ],
-            temperature=1.0,
-            max_tokens=800,
+            temperature=2.0,
+            max_tokens=1000,
+            top_p=1.0,
         )
 
         return response.choices[0].message.content
