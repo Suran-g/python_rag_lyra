@@ -10,7 +10,7 @@
 
 - **本地向量化**：通过 Ollama 调用 Embedding 模型，文本不出本机
 - **三种切片策略**：段落合并 + 长段句切、按空行切分、固定长度切分
-- **向量检索**：Chroma 持久化向量库，余弦距离，可调 `top_k`
+- **向量检索**：Chroma 持久化 .env_example 向量库，余弦距离，可调 `top_k`
 - **角色扮演**：检索原文注入 Prompt，让模型模仿资料的文风与语气
 - **流式对话**：Streamlit 网页界面，逐字输出
 - **会话管理**：新建 / 切换 / 删除会话，历史自动保存为 JSON
@@ -61,8 +61,8 @@ flowchart LR
 python_rag_lyra/
 ├── data/
 │   ├── tianqin.md            # 角色设定（System Prompt，随仓库提供）
-│   └── BCPONY.txt            # 知识库原文（需自备，已被 gitignore）
-├── sessions/                 # 对话历史，运行时自动生成（已 gitignore）
+│   └── BCPONY.txt            # 知识库原文（需自备）
+├── sessions/                 # 对话历史，运行时自动生成
 ├── src/python_rag_lyra/
 │   ├── rag.py                # 切分 → 向量化 → 写入 Chroma
 │   ├── embedding.py          # Ollama Embedding 客户端
@@ -103,7 +103,7 @@ uv sync
 ### 4. 配置环境变量
 
 ```bash
-cp .env_example .env
+cp .env
 ```
 
 编辑 `.env`，至少填入 API Key：
@@ -127,15 +127,13 @@ DEEPSEEK_API_KEY="sk-xxxxxxxx"
 
 ### 5. 准备知识库文本
 
-仓库**不包含**小说原文。把你要检索的文本放到 `data/` 下，例如：
+仓库**不包含**小说原文。把你要检索的文本放到 `data/` 下，并重命名
+例如：
 
 ```text
 data/BCPONY.txt
 ```
 
-然后按需修改代码中写死的路径：
-
-- [src/python_rag_lyra/main.py](src/python_rag_lyra/main.py) 与 [src/python_rag_lyra/app.py](src/python_rag_lyra/app.py) 中的 `rag("data/BCPONY.txt")`
 
 ### 6. 构建知识库并启动
 
@@ -219,27 +217,6 @@ rag("data/BCPONY.txt", chunk_size=500, overlap=80, chunks_model=1)
 
 ---
 
-## 已知问题
+## 其他
 
-- `main.py` 中 `build_rag(self, c=1)` 的签名导致菜单里选择的切块方式不生效，始终使用策略 `1`
-- 已有 collection 时不会重建；且 `upsert` 不会删除旧数据，**切换切分方式后需删除 `CHROMA_PATH` 或更换 `COLLECTION_NAME`**
-- `app.py` 中的模型名 `deepseek-flash` 为硬编码，与 `.env` 的 `DEEPSEEK_MODEL` 不一致
-- 无自动化测试
-
----
-
-## Roadmap
-
-- [ ] 命令行入口支持真正的重建与切块方式选择
-- [ ] 混合检索（BM25 + 向量）与 Rerank
-- [ ] 章节级元数据与按章节过滤
-- [ ] 检索结果带去重（MMR）与距离阈值
-- [ ] 配置集中管理，消除硬编码路径与模型名
-- [ ] 单元测试与检索效果评估脚本
-
----
-
-## 致谢
-
-- [Chroma](https://github.com/chroma-core/chroma)、[Ollama](https://github.com/ollama/ollama)、[Streamlit](https://github.com/streamlit/streamlit)、[DeepSeek](https://www.deepseek.com/)
 - 角色设定与示例文本来源于同人作品《背景小马》，版权归原作者所有
