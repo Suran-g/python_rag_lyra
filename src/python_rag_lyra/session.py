@@ -46,7 +46,7 @@ class session:
         context = "\n\n".join(
             f"[片段 {i}]\n{chunk}" for i, chunk in enumerate(context_chunks, start=1)
         )
-        print(context)
+        #print(context)
         return f"""资料：{context}问题：{question}"""
 
     
