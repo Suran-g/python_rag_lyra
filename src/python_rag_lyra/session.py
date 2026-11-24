@@ -11,7 +11,8 @@ class session:
     def __init__(self, 
                  collection,
                  DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL"),
-                 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL")
+                 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL"),
+                 Top_K = 25
         ):
         prompt_path = os.getenv("SYSTEM_PROMPT_PATH", "data/tianqin.md")
         self.SYSTEM_PROMPT = Path(prompt_path).read_text(encoding="utf-8")
@@ -19,19 +20,21 @@ class session:
         self.collection = collection
         self.DEEPSEEK_BASE_URL = DEEPSEEK_BASE_URL
         self.DEEPSEEK_MODEL = DEEPSEEK_MODEL
+        self.top_k = Top_K
 
     def get(self):
           return self.SYSTEM_PROMPT
         
 
-    def retrieve(self,question: str, top_k: int = 5):
+    def retrieve(self,question: str,top_k: int | None= None):
         """把问题向量化，在库里找最相似的 top_k 个 chunk。"""
+        n_results = self.top_k if top_k is None else top_k
         embedder = OllamaEmbedder()
         query_vector = embedder.embed([question])[0]
 
         results = self.collection.query(
             query_embeddings=[query_vector],
-            n_results=top_k,
+            n_results= n_results,
             include=["documents", "metadatas", "distances"],
         )
         print("问题向量化成功 ")
@@ -86,7 +89,7 @@ class session:
             context_chunks = results["documents"][0]
             return self.generate_answer(question, context_chunks)
 
-    def context_chunks(self,question,top_k: int = 50):
+    def context_chunks(self,question: str,top_k: int | None = None):
                 """结合回传chunks"""
                 results = self.retrieve(question, top_k)
                 context_chunks = results["documents"][0]

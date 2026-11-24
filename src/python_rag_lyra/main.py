@@ -35,11 +35,12 @@ while True:
             case 2:
                 handle_web()
             case 3:
-                rag = rag("data/BCPONY.txt")
-                collection = rag.get_collection()
+                r = rag("data/BCPONY.txt")
+                collection = r.get_collection()
                 print(f"库名: {collection.name}, 文档数: {collection.count()}")
             case 4:
                 print("退出")
+                break
             case _:
                 break
     except Exception as e:
