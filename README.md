@@ -4,14 +4,17 @@
 
 以《背景小马》中的角色 **天琴心弦** 为默认示例，角色设定保存在 [data/tianqin.md](data/tianqin.md)，可替换成任意角色与任意知识库文本。
 
+系统提示词分为两层：[data/default_prompt.md](data/default_prompt.md) 存放与角色无关的通用规则，[data/tianqin.md](data/tianqin.md) 存放具体人设，运行时拼接后发送给模型。
+
 ---
 
 ## 功能特性
 
 - **本地向量化**：通过 Ollama 调用 Embedding 模型，文本不出本机
 - **三种切片策略**：段落合并 + 长段句切、按空行切分、固定长度切分
-- **向量检索**：Chroma 持久化 .env_example 向量库，余弦距离，可调 `top_k`
+- **向量检索**：Chroma 持久化到 `data/chroma_db`，余弦距离，可调 `top_k`
 - **角色扮演**：检索原文注入 Prompt，让模型模仿资料的文风与语气
+- **提示词分层**：通用规则与角色设定分开存放，侧边栏可实时编辑角色提示词并一键恢复默认
 - **流式对话**：Streamlit 网页界面，逐字输出
 - **会话管理**：新建 / 切换 / 删除会话，历史自动保存为 JSON
 - **双入口**：命令行菜单 或 Streamlit 网页
@@ -29,7 +32,7 @@ flowchart LR
     E[用户提问] --> F[问题向量化]
     F --> G["Top-K 相似检索"]
     D --> G
-    G --> H["拼接 Prompt<br/>角色设定 + 参考资料 + 问题"]
+    G --> H["拼接 Prompt<br/>通用规则 + 角色设定<br/>+ 参考资料 + 问题"]
     H --> I["DeepSeek 生成回答"]
     I --> J["Streamlit 流式输出"]
     J --> K["sessions/*.json"]
@@ -37,7 +40,7 @@ flowchart LR
 
 1. **建库**：读取文档 → 按所选策略切块 → 批量调用 Ollama Embedding → 写入 Chroma（附 `source`、`chunk_index` 元数据）
 2. **检索**：用户问题向量化 → 在 Chroma 中取余弦距离最近的 `top_k` 个片段
-3. **生成**：把片段编号后拼进 Prompt，连同角色设定一起发送给 DeepSeek
+3. **生成**：把片段编号后拼进 Prompt，连同两层系统提示词（通用规则 + 角色设定）一起发送给 DeepSeek
 4. **保存**：对话记录写入 `sessions/`，可随时恢复
 
 ---
@@ -60,7 +63,8 @@ flowchart LR
 ```text
 python_rag_lyra/
 ├── data/
-│   ├── tianqin.md            # 角色设定（System Prompt，随仓库提供）
+│   ├── default_prompt.md     # 通用系统提示词：回答规则（随仓库提供）
+│   ├── tianqin.md            # 角色设定（随仓库提供）
 │   └── BCPONY.txt            # 知识库原文（需自备）
 ├── sessions/                 # 对话历史，运行时自动生成
 ├── src/python_rag_lyra/
@@ -103,7 +107,7 @@ uv sync
 ### 4. 配置环境变量
 
 ```bash
-cp .env
+cp .env_example .env
 ```
 
 编辑 `.env`，至少填入 API Key：
@@ -123,6 +127,7 @@ DEEPSEEK_API_KEY="sk-xxxxxxxx"
 | `EMBED_MODEL` | Embedding 模型 | `qwen3-embedding:4b` |
 | `CHROMA_PATH` | 向量库存储路径 | `data/chroma_db` |
 | `COLLECTION_NAME` | 集合名称 | `doraemon` |
+| `DEFAULT_PROMPT_PATH` | 通用系统提示词文件路径 | `data/default_prompt.md` |
 | `SYSTEM_PROMPT_PATH` | 角色设定文件路径 | `data/tianqin.md` |
 
 ### 5. 准备知识库文本
@@ -168,29 +173,57 @@ uv run streamlit run src/python_rag_lyra/app.py
 
 ---
 
+## 提示词配置
+
+系统提示词由**通用规则**和**角色设定**两层拼接而成，模板本身不包含对话历史：
+
+| 文件 | 环境变量 | 作用 |
+| --- | --- | --- |
+| `data/default_prompt.md` | `DEFAULT_PROMPT_PATH` | 与角色无关的回答规则：参考资料、模仿文风、不暴露系统词汇等 |
+| `data/tianqin.md` | `SYSTEM_PROMPT_PATH` | 具体人设：身份、核心原则、回答风格 |
+
+拼接顺序（见 `app.py`）：
+
+```python
+system_prompt = (
+    f"{DEFAULT_SYSTEM_PROMPT}\n\n"   # data/default_prompt.md
+    f"{role}\n\n"                    # data/tianqin.md，昵称替换后
+    f"【当前扮演】你的名字是「{nick}」，回答中以此自称。"
+)
+```
+
+- 角色设定中的所有「天琴心弦」会被替换成侧边栏填写的昵称
+- 侧边栏「角色提示词」文本框可直接修改人设，只影响当前会话，不改动原文件
+- 「恢复默认角色提示词」会重新载入 `data/tianqin.md`
+- 当前会话使用的角色提示词会随对话一起保存到 `sessions/*.json`
+- 换角色时一般只需替换 `data/tianqin.md`；通用的行为约束放在 `default_prompt.md`
+- 两个文件均按 UTF-8 读取，修改后刷新页面即可生效
+
+---
+
 ## 参数说明
 
 ### 检索参数
 
 | 参数 | 位置 | 当前默认值 | 说明 |
 | --- | --- | --- | --- |
-| `top_k` | `session.retrieve()` | `5` | 检索返回的片段数 |
-| `top_k` | `session.ask()` | `3` | 命令行问答使用 |
-| `top_k` | `session.context_chunks()` | `50` | 网页版注入的片段数 |
+| `Top_K` | `session.__init__()` | `25` | 实例级检索片段数；`retrieve()` 不传 `top_k` 时使用 |
+| `top_k` | `session.ask()` | `3` | 命令行 `ask()` 单独调用时使用（当前菜单入口未调用） |
+| `top_k` | `app.py` 侧边栏 | `25`（可调 25~100） | 网页版每次注入的片段数，经 `context_chunks(top_k=...)` 传入 |
 | `hnsw:space` | `rag.get_collection()` | `cosine` | 距离度量，建库时固定 |
 
-> `top_k` 越大召回越全，但无关片段也会混入 Prompt；文本问答一般 3~6 条即可，配合更细的切片再适当增大。
+> `top_k` 越大召回越全，但无关片段也会混入 Prompt 并挤占上下文长度。网页版滑杆范围固定为 25~100，默认 25；命令行 `ask()` 默认 3，更省 token。
 
 ### 生成参数
 
 | 参数 | `session.py` | `app.py` | 说明 |
 | --- | --- | --- | --- |
-| `model` | `DEEPSEEK_MODEL` | `deepseek-flash` | 生成模型 |
-| `temperature` | `2.0` | `1.1` | 随机性，角色扮演可偏高 |
-| `top_p` | `1.0` | `0.5` | 核采样 |
-| `max_tokens` | `1000` | `10000` | 回答长度上限 |
+| `model` | `DEEPSEEK_MODEL` | `DEEPSEEK_MODEL` | 生成模型（读取 `.env`） |
+| `temperature` | `2.0` | `1.0`（可调 0.2~2.0） | 随机性，角色扮演可偏高 |
+| `top_p` | `1.0` | `1.0`（可调 0.1~1.0） | 核采样 |
+| `max_tokens` | `1000` | `512` | 回答长度上限 |
 | `stream` | `False` | `True` | 流式输出 |
-| `thinking` | — | `disabled` | DeepSeek 思考模式开关 |
+| `thinking` | — | `none`（关闭） | DeepSeek 思考模式；侧边栏可选 `none`/`low`/`high`/`max`，并以 `reasoning_effort` 透传 |
 
 ### 切片参数
 
