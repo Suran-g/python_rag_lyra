@@ -10,7 +10,7 @@ class OllamaEmbedder:
 
     def embed(self, texts: list[str]) -> list[list[float]]:
             """调用本地 Ollama，把一批文本转成向量。"""
-            print("向量化中...")
+            #print("向量化中...")
             response = requests.post(
                 f"{os.getenv("OLLAMA_HOST")}/api/embed",
                 json={

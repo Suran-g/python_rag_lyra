@@ -4,7 +4,7 @@ import requests
 import chromadb
 from dotenv import load_dotenv
 from python_rag_lyra.embedding import OllamaEmbedder 
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import re
 
 
@@ -29,6 +29,8 @@ class rag:
     def run_rag():
         pass
 
+
+
     def get_collection(self):
 
         client = chromadb.PersistentClient(path=CHROMA_PATH)
@@ -36,6 +38,18 @@ class rag:
             name=COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"},
         )
+
+    def reset_collection(self):
+        """集合已存在就先删除，保证这次是干净重建。"""
+        client = chromadb.PersistentClient(path=CHROMA_PATH)
+        names = [c.name for c in client.list_collections()]
+
+        if COLLECTION_NAME in names:
+            client.delete_collection(COLLECTION_NAME)
+            print(f"已删除旧库：{COLLECTION_NAME}")
+
+        else:
+            print("没有旧库，直接新建")
 
     def split_into_chunks(self, doc_file:str)->list[str]:
         """按空行(段落)切分文档。"""
@@ -113,9 +127,12 @@ class rag:
             vectors = []
             total = len(document_chunks) 
             batch = 64
-            for start in tqdm(range(0, total, batch), desc="向量化"):
-                end = min(start + batch, total)
-                vectors.extend(self.embedder.embed(document_chunks[start:end]))
+            with tqdm(total=total, desc="向量化", unit="块", leave=False, dynamic_ncols=True) as pbar:
+                for start in range(0, total, batch):
+                    end = min(start + batch, total)
+                    vectors.extend(self.embedder.embed(document_chunks[start:end]))
+                    pbar.update(end - start)
+
             print("向量化完成")
     
             doc_name = Path(self.doc_file).stem

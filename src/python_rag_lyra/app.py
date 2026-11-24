@@ -172,7 +172,7 @@ if prompt:
         })
 
     response = (client.chat.completions.create(
-        model="deepseek-flash",
+        model=os.getenv("DEEPSEEK_MODEL"),
         messages=[
         {
             "role": "system", 
@@ -186,7 +186,7 @@ if prompt:
         ],
         stream=True,
         temperature=1.1,
-        top_p=0.5,
+        top_p=1,
         max_tokens=10000,
         extra_body={"thinking": {"type": "disabled"}},
     ))

@@ -1,6 +1,7 @@
 from python_rag_lyra.rag import rag
 from python_rag_lyra.session import session
 import subprocess, sys
+import os
 from pathlib import Path
 
 def handle_web():
@@ -8,14 +9,12 @@ def handle_web():
     subprocess.run([sys.executable, "-m", "streamlit", "run", str(app)])
 
 
-def build_rag(self, c:int = 1):
-    r = rag("data/BCPONY.txt", chunks_model=c)
-    collection = r.get_collection()
-    if collection.count() == 0:          # 库是空的才建
-        collection = r.build_collection()
-        print("建库成功")
-    else:
-        print("已有数据库")
+def build_rag(c:int = 1):
+    r = rag("data/BCPONY.txt", chunks_model=c,model = os.getenv("EMBED_MODEL"))
+    r.reset_collection()
+    collection = r.build_collection()
+   
+    print(f"建库完成：{collection.name}，共 {collection.count()} 条")
 
 while True:
     p = int(input(
@@ -30,6 +29,8 @@ while True:
         match p:
             case 1:
                 mod = int(input("选择切块方式：1.按文档段落切分,长段按句子切 2.按换行切分 3.按固定长度切分\n"))
+                if input("会删除现有向量库，确认？(y/n): ").lower() != "y":
+                    continue
                 build_rag(mod)
             case 2:
                 handle_web()
